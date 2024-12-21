@@ -7,14 +7,86 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: url('./images/bgr.jpg') no-repeat center center fixed;
+            background-size: cover;
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        h1 {
+            font-weight: bold;
+            color: #ffffff;
+            font-family: 'Bell MT', serif;
+            font-size: 4rem;
+        }
+
+        p {
+            font-family: 'Bell MT', serif;
+            font-size: 2.5rem;
+            color: #ffffff;
+        }
+
+        .table {
+            background-color: #ffffff;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        .table th {
+            background-color: #2c3e50;
+            color: #ffffff;
+        }
+
+        .table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .table tr:hover {
+            background-color: #dbeafe;
+            transition: background-color 0.3s ease;
+        }
+
+        .container {
+            margin-top: 50px;
+            max-width: 900px;
+        }
+
+        .spinner {
+            display: none;
+            margin: 50px auto;
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #3498db;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
 <body>
     <div class="container mt-5">
-        <h1 class="text-center">Theo dõi Ra vào</h1>
-        <p class="text-center text-muted">Thông tin người ra vào</p>
-        
+        <h1 class="text-center"><i class="fas fa-door-open"></i> Theo Dõi Ra Vào</h1>
+        <p class="text-center">Theo dõi hoạt động ra vào mới nhất</p>
+
+        <div class="spinner" id="spinner"></div>
+
         <table class="table table-bordered mt-4">
             <thead class="table-dark">
                 <tr>
+                    <th scope="col">STT</th>
                     <th scope="col">ID</th>
                     <th scope="col">Tên</th>
                     <th scope="col">Ngày và Giờ</th>
@@ -26,61 +98,84 @@
         </table>
     </div>
 
-<script>
-    // Cấu hình Firebase
-    const firebaseConfig = {
-        apiKey: "AIzaSyDrlmzqEPUppwnApdL0yByRIulnyFd30iU",
-        authDomain: "doan-nhung-fd085.firebaseapp.com",
-        databaseURL: "https://doan-nhung-fd085-default-rtdb.firebaseio.com",
-        projectId: "doan-nhung-fd085",
-        storageBucket: "doan-nhung-fd085.appspot.com",
-        messagingSenderId: "395155518154",
-        appId: "1:395155518154:web:b532b1348035912badfa33",
-        measurementId: "G-SN9Y8CT21Y"
-    };
+    <script>
+        // Cấu hình Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyDrlmzqEPUppwnApdL0yByRIulnyFd30iU",
+            authDomain: "doan-nhung-fd085.firebaseapp.com",
+            databaseURL: "https://doan-nhung-fd085-default-rtdb.firebaseio.com",
+            projectId: "doan-nhung-fd085",
+            storageBucket: "doan-nhung-fd085.appspot.com",
+            messagingSenderId: "395155518154",
+            appId: "1:395155518154:web:b532b1348035912badfa33",
+            measurementId: "G-SN9Y8CT21Y"
+        };
 
-    // Khởi tạo Firebase
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+        // Khởi tạo Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
-    // Gán tên cho các ID
-    const idToNameMap = {
-        "770871989078": "HỒ MINH ĐẾ",
-        "219470631745": "CHU VĂN MỎ",
-        // Thêm ID và tên khác tại đây
-    };
+        // Gán tên cho các ID
+        const idToNameMap = {
+            "770871989078": "HỒ MINH ĐẾ",
+            "219470631745": "CHU VĂN MỎ"
+            // Thêm ID và tên khác tại đây
+        };
 
-    // Tham chiếu tới dữ liệu Firebase
-    const ref = db.ref("rfid_data");
-
-    // Đọc dữ liệu từ Firebase và cập nhật bảng
-    ref.on("value", (snapshot) => {
-        const data = snapshot.val();
+        const spinner = document.getElementById('spinner');
         const tableBody = document.getElementById("data-table");
-        tableBody.innerHTML = ""; // Xóa nội dung cũ
+        const maxRows = 10; // Số hàng tối đa hiển thị
 
-        if (data) {
-            Object.keys(data).forEach((key) => {
-                const item = data[key];
-                const name = idToNameMap[item.rfid_uid] || "Không rõ"; // Tìm tên từ ID
-                const row = `
-                    <tr>
-                        <td>${item.rfid_uid}</td>
-                        <td>${name}</td>
-                        <td>${item.timestamp}</td>
-                    </tr>
+        // Tham chiếu tới dữ liệu Firebase
+        const ref = db.ref("rfid_data");
+
+        // Hiển thị spinner trong khi chờ dữ liệu
+        spinner.style.display = "block";
+
+        // Lắng nghe sự kiện khi Firebase thêm dữ liệu mới hoặc thay đổi
+        ref.on("child_added", (snapshot) => {
+            updateTable(snapshot);
+        });
+
+        ref.on("child_changed", (snapshot) => {
+            updateTable(snapshot);
+        });
+
+        function updateTable(snapshot) {
+            const item = snapshot.val();
+
+            if (item && item.rfid_uid && item.timestamp) {
+                spinner.style.display = "none"; // Tắt spinner sau khi có dữ liệu
+                const name = idToNameMap[item.rfid_uid] || "Không rõ";
+
+                // Tạo hàng mới
+                const newRow = document.createElement("tr");
+                newRow.innerHTML = `
+                    <td></td>
+                    <td>${item.rfid_uid}</td>
+                    <td>${name}</td>
+                    <td>${item.timestamp}</td>
                 `;
-                tableBody.innerHTML += row;
-            });
-        } else {
-            tableBody.innerHTML = `
-                <tr>
-                    <td colspan="3" class="text-center">Không có dữ liệu</td>
-                </tr>
-            `;
-        }
-    });
-</script>
 
+                // Thêm hàng mới vào đầu bảng
+                tableBody.insertBefore(newRow, tableBody.firstChild);
+
+                // Cập nhật Số thứ tự
+                updateSerialNumbers();
+
+                // Kiểm tra và xóa nếu vượt quá số hàng tối đa
+                while (tableBody.rows.length > maxRows) {
+                    tableBody.deleteRow(tableBody.rows.length - 1); // Xóa hàng cuối
+                }
+            }
+        }
+
+        function updateSerialNumbers() {
+            const rows = tableBody.querySelectorAll("tr");
+            rows.forEach((row, index) => {
+                row.cells[0].innerText = index + 1; // Gán STT bắt đầu từ 1
+            });
+        }
+    </script>
 </body>
 </html>
